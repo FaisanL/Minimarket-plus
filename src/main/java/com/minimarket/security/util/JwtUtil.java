@@ -2,25 +2,33 @@ package com.minimarket.security.util;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Component
 public class JwtUtil {
-    private static final String SECRET_KEY = "mysecretkeymysecretkeymysecretkey";
-    private static final long EXPIRATION_TIME = 86400000; // 1 dia en milisegundos
+    private final String secretKey;
+    private final long expirationTime;
+
+    public JwtUtil(@Value("${app.jwt.secret}") String secretKey,
+                   @Value("${app.jwt.expiration-ms}") long expirationTime) {
+        this.secretKey = secretKey;
+        this.expirationTime = expirationTime;
+    }
     
     private Key getSigningKey() { // Genera una clave de firma a partir de la cadena secreta
-        return Keys.hmacShaKeyFor(SECRET_KEY.getBytes()); 
+        return Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8)); 
     }
 
     public String generateToken(String username) { // Genera un token JWT para un nombre de usuario dado
         return Jwts.builder()
                 .setSubject(username) // Establece el sujeto del token como el nombre de usuario
                 .setIssuedAt(new Date()) // Establece la fecha de emisión del token
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME)) // Establece la fecha de expiración del token
+                .setExpiration(new Date(System.currentTimeMillis() + expirationTime)) // Establece la fecha de expiración del token
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256) // Firma el token con la clave de firma y el algoritmo HS256
                 .compact(); // Compila el token en una cadena compacta
     }
@@ -45,9 +53,4 @@ public class JwtUtil {
             return false; // Si se lanza una excepción, el token no es válido
         }
     }
-
-
-
-
-
 }
