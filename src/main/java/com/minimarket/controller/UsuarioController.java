@@ -4,6 +4,8 @@ import com.minimarket.entity.Usuario;
 import com.minimarket.service.UsuarioService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,12 +18,17 @@ public class UsuarioController {
     @Autowired
     private UsuarioService usuarioService;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public List<Usuario> listarUsuarios() {
         return usuarioService.findAll();
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Usuario> obtenerUsuarioPorId(@PathVariable Long id) {
         Optional<Usuario> usuario = usuarioService.findById(id);
         return usuario.map(ResponseEntity::ok) // Si el usuario existe, devuelve 200 OK con el usuario
@@ -29,21 +36,26 @@ public class UsuarioController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public Usuario guardarUsuario(@RequestBody Usuario usuario) {
+        codificarPasswordSiCorresponde(usuario);
         return usuarioService.save(usuario);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Usuario> actualizarUsuario(@PathVariable Long id, @RequestBody Usuario usuario) {
         Optional<Usuario> usuarioExistente = usuarioService.findById(id);
         if (usuarioExistente.isPresent()) {
             usuario.setId(id);
+            codificarPasswordSiCorresponde(usuario);
             return ResponseEntity.ok(usuarioService.save(usuario));
         }
         return ResponseEntity.notFound().build();
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> eliminarUsuario(@PathVariable Long id) {
         Optional<Usuario> usuario = usuarioService.findById(id);
         if (usuario.isPresent()) { // Verifica si el usuario existe
@@ -51,5 +63,12 @@ public class UsuarioController {
             return ResponseEntity.noContent().build(); // Respuesta 204 (sin contenido)
         }
         return ResponseEntity.notFound().build(); // Respuesta 404 (no encontrado)
+    }
+
+    private void codificarPasswordSiCorresponde(Usuario usuario) {
+        String password = usuario.getPassword();
+        if (password != null && !password.startsWith("$2a$") && !password.startsWith("$2b$") && !password.startsWith("$2y$")) {
+            usuario.setPassword(passwordEncoder.encode(password));
+        }
     }
 }
